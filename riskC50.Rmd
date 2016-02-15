@@ -1,0 +1,95 @@
+---
+title: "客戶信用風險評估"
+author: "許sir"
+---
+
+### **資料說明**
+#### 1.本單元主題僅在介紹建立C5.0模型與決策樹
+
+#### 2.從risk.xlsx作資料準備
+#### - 以新資料riskNew.xlsx來預測
+
+### **[設定所需的函式庫(libraries)以及載入資料]**
+```{r message=FALSE, warning=FALSE, results='hide'}
+
+setwd("/home/m600/Working Area/Rdata Practice/Customer Course/riskC5.0")
+risk=read.csv("./Risk.csv",header=T,sep=",")
+
+```
+
+### **[Part 1].Data-ETL**
+
+#### **1-1.取得資料集的初探**
+```{r message=FALSE, warning=FALSE}
+head(risk)
+sumdebt=risk$NUMCARDS+risk$STORECAR+risk$LOANS
+sumdebt[1:5]
+#risk=risk[,-c(1,7,10,11)]
+risk=risk[,c(3,5,6,12)]
+risk2=data.frame(risk,sumdebt)
+head(risk2)
+```
+
+#### **1-2.Test group 建立**
+```{r message=FALSE, warning=FALSE}
+n=0.3*nrow(risk)
+test.index=sample(1:nrow(risk),n)
+risk2.train=risk2[-test.index,]
+risk2.test=risk2[test.index,]
+```
+
+### **[Part 2].C5.0 模式建立**
+
+#### **2-1.Test group 建立**
+```{r message=FALSE, warning=FALSE}
+#install.packages("C50")
+library(C50)
+risk.tree=C5.0(RISK~ . ,data=risk2.train)
+summary(risk.tree)
+plot(risk.tree)
+```
+
+#### **2-2.Train confusion matrix**
+```{r message=FALSE, warning=FALSE}
+RISK.train=risk2$RISK[-test.index]
+train.pred=predict(risk.tree,risk2.train,type='class')
+table.train=table(RISK.train,train.pred)
+table.train
+cat("Total records(train)=",nrow(risk2.train),"\n")
+cat("Correct Classification Ratio(train)=",sum(diag(table.train))/sum(table.train)*100,"%\n")
+```
+
+#### **2-3.Test confusion matrix**
+```{r message=FALSE, warning=FALSE}
+RISK.test=risk2$RISK[test.index]
+test.pred=predict(risk.tree,risk2.test,type='class')
+table.test=table(RISK.test,test.pred)
+table.test
+cat("Total records(test)=",nrow(risk2.test),"\n")
+cat("Correct Classification Ratio(test)=",sum(diag(table.test))/sum(table.test)*100,"%\n")
+```
+
+### **[Part 3].預測資料集**
+
+#### **3-1.以RiskNew.xlsx 當成新的預測資料**
+```{r message=FALSE, warning=FALSE}
+riskNew=read.csv("./RiskNew.csv",header=T,sep=",")
+
+head(riskNew)
+sumdebt=riskNew$NUMCARDS+riskNew$STORECARDS+riskNew$LOANS
+riskNew=riskNew[,c(2,4,5)]
+riskNew2=data.frame(riskNew,sumdebt)
+head(riskNew2)
+```
+
+#### **3-2.Predict risknew2**
+```{r message=FALSE, warning=FALSE}
+risk.pred=predict(risk.tree,riskNew2,type='class')
+```
+
+#### **3-3.Merge predict result and output**
+```{r message=FALSE, warning=FALSE}
+riskNewAll=data.frame(riskNew2,RiskPred=risk.pred)
+head(riskNewAll,20)
+```
+
